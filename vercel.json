@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/tier_icons/:mode", "destination": "/api/icon/:mode" },
     { "source": "/profile/:username", "destination": "/index.html" },
+    { "source": "/rankings", "destination": "/index.html" },
     { "source": "/rankings/:mode", "destination": "/index.html" }
   ],
   "headers": [
