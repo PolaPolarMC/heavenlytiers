@@ -258,7 +258,7 @@ function openM(id){document.getElementById(id).classList.add('vis')}
 function closeMs(){
   document.querySelectorAll('.mbg').forEach(m=>m.classList.remove('vis'));
   closeHam();
-  if(location.hash.startsWith('#player='))history.replaceState(null,'',location.pathname);
+  if(location.pathname.startsWith('/profile/'))history.pushState(null,'','/');
 }
 function showAuthTab(t){
   document.getElementById('authLogin').style.display=t==='login'?'':'none';
@@ -297,7 +297,7 @@ const NAV_ITEMS=[
   {id:'panel',label:'Panel',svg:S.crown,auth:true}
 ];
 
-function showPage(n){
+function showPage(n,skipPush){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('vis'));
   const el=document.getElementById('pg-'+n);
   if(el){el.classList.add('vis');curPg=n}
@@ -307,6 +307,11 @@ function showPage(n){
   if(n==='rankings')renderRank();
   if(n==='testers')renderTesters();
   if(n==='panel')initPanel();
+  if(!skipPush){
+    if(n==='home')history.pushState(null,'','/');
+    else if(n==='rankings')history.pushState(null,'',actMode==='Overall'?'/rankings':'/rankings/'+encodeURIComponent(actMode));
+    else history.pushState(null,'','/'+n);
+  }
   window.scrollTo({top:0});
 }
 
@@ -833,7 +838,7 @@ function buildTabs(){
     const ic=MODE_IC[m]||{u:''};
     const d=document.createElement('div');
     d.className='tab'+(m===actMode?' act':'');
-    d.onclick=()=>{actMode=m;slideTabTo(d);renderRank()};
+    d.onclick=()=>{actMode=m;slideTabTo(d);renderRank();history.pushState(null,'',m==='Overall'?'/rankings':'/rankings/'+encodeURIComponent(m));};
 
     // Build icon using DOM — avoids quote-escaping bugs in innerHTML onerror attributes
     if(ic.u){
@@ -1045,7 +1050,7 @@ function showPD(un){
 
   const bioBlock=p.bio?`<div class="pd-bio">${esc(p.bio)}</div>`:'';
 
-  const shareUrl=location.origin+location.pathname+'#player='+encodeURIComponent(p.username);
+  const shareUrl=location.origin+'/profile/'+encodeURIComponent(p.username);
   const copyLinkBtn=`<button class="pd-social" title="Copy profile link" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(shareUrl)}');toast('Profile link copied!','success')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.07 0l1.93-1.93a5 5 0 00-7.07-7.07L10.5 5.5M14 11a5 5 0 00-7.07 0l-1.93 1.93a5 5 0 007.07 7.07L13.5 18.5"/></svg></button>`;
 
   let badges=MODES.map(m=>{
@@ -1078,7 +1083,7 @@ function showPD(un){
   ${warn}
   <div class="prog-w" style="margin-top:14px"><div class="prog" style="width:${prog.pct}%"></div></div>
   <div class="prog-lbl">${prog.label}</div>`;
-  history.replaceState(null,'','#player='+encodeURIComponent(p.username));
+  history.pushState(null,'','/profile/'+encodeURIComponent(p.username));
   openM('pdM');
   if(rank===1)fireConfetti();
 }
@@ -2023,10 +2028,36 @@ window.addEventListener('cloud-ready',()=>{
   openDeepLinkedProfile();
 });
 
-// Shareable profile links: #player=username opens that profile automatically
+// Shareable links: /profile/username opens that profile, /rankings/mode opens that
+// mode's board — both real paths (not hash), so they work as normal shareable URLs.
 function openDeepLinkedProfile(){
-  const m=location.hash.match(/^#player=(.+)$/);
-  if(!m)return;
-  const un=decodeURIComponent(m[1]);
-  if(window.players.find(p=>p.username===un))showPD(un);
+  const path=location.pathname;
+  let m=path.match(/^\/profile\/([^/]+)\/?$/);
+  if(m){
+    const un=decodeURIComponent(m[1]);
+    if(window.players.find(p=>p.username===un)){
+      showPage('rankings',true);
+      showPD(un);
+    }
+    return;
+  }
+  m=path.match(/^\/rankings\/([^/]+)\/?$/);
+  if(m){
+    const mode=decodeURIComponent(m[1]);
+    const match=['Overall',...MODES].find(x=>x.toLowerCase()===mode.toLowerCase());
+    if(match)actMode=match;
+    showPage('rankings',true);
+    return;
+  }
+  if(path==='/rankings')showPage('rankings',true);
 }
+
+// Back/forward browser buttons — re-parse whatever path we landed on.
+window.addEventListener('popstate',()=>{
+  if(location.pathname==='/'||location.pathname===''){
+    closeMs();
+    showPage('home');
+    return;
+  }
+  openDeepLinkedProfile();
+});
