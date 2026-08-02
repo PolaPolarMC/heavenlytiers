@@ -1609,7 +1609,7 @@ async function uploadAndSetModeIcon(modeName,file){
     toast('Icon upload failed: '+(err.message||err),'error');
     return false;
   }
-  MODE_IC[modeName]={u:'/tier_icons/'+slug};
+  MODE_IC[modeName]={u:'/tier_icons/'+slug+'?v='+Date.now()};
   return true;
 }
 
